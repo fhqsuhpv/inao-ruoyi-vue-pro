@@ -1,14 +1,15 @@
 package cn.iocoder.yudao.module.crm.controller.admin.callcenter;
 
-import cn.hutool.http.HttpResource;
 import cn.hutool.json.JSONUtil;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.module.crm.controller.admin.callcenter.vo.CrmCallcenterCallReqVO;
-import cn.iocoder.yudao.module.crm.dal.dataobject.callcenter.CrmCallcenterUserDO;
-import cn.iocoder.yudao.module.crm.dal.mysql.callcenter.CrmCallcenterUserMapper;
+import cn.iocoder.yudao.module.crm.controller.admin.callcenter.vo.CrmCallcenterUserRespVO;
+import cn.iocoder.yudao.module.crm.controller.admin.callcenter.vo.CrmCallcenterUserSaveReqVO;
 import cn.iocoder.yudao.module.crm.service.callcenter.CrmCallCenterService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
+import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 
 import org.springframework.http.*;
@@ -22,13 +23,10 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
-import javax.validation.constraints.Null;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static cn.hutool.crypto.SecureUtil.md5;
@@ -72,34 +70,15 @@ public class CrmCallCenterController {
 //
 //    }
 
-    private HttpHeaders getHeaders(String partnerId) {
-        //云客接口部分用管理员ID外呼接口需要使用UserId
-        String pid = partnerId != null ? partnerId : "p445B194DD03B47B893BD3256A57721DE";//管理员ID
-        String api_key = "A1C95A823C8B448B9578B4";  //接口签名KEY
-        String company = "7fkuu0";  //企业串码
 
-        String tiemstamp = String.valueOf(System.currentTimeMillis());
-
-        String s = md5(api_key + company + pid + tiemstamp).toUpperCase();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("partnerId", pid);//管理员ID
-        headers.add("company", company);//企业串码
-        headers.add("timestamp", tiemstamp);
-        headers.add("sign", s);//签名
-        System.out.println("headers------->"+headers);
-        System.out.println("sign------->"+(api_key + company + pid + tiemstamp));
-        System.out.println("sign_md5------->"+md5(api_key + company + pid + tiemstamp).toUpperCase());
-        return headers;
-    }
 
     @PostMapping("/entryphone")
-    @Operation(summary = "获取呼叫中心用户信息通过手机号码")
+    @Operation(summary = "获取呼叫中心用户信息通过手机号码并绑定")
     @PreAuthorize("@ss.hasPermission('crm:callcenter:user')")
     public CommonResult<Boolean> getCallCenterUserByPhone(@RequestBody String phone)  {
         Map<String,Object> param = new HashMap<>();
         param.put("phone",phone);
-        HttpEntity<String> requestEntity = new HttpEntity<>(JSONUtil.toJsonStr(param),getHeaders(null));
+        HttpEntity<String> requestEntity = new HttpEntity<>(JSONUtil.toJsonStr(param),crmCallCenterService.getHeaders(null));
         ResponseEntity<String> responseEntity = restTemplate.exchange("https://phone.yunkecn.com/open/user/getUserByPhone", HttpMethod.POST, requestEntity, String.class);
         System.out.println("responseEntity------->"+responseEntity);
 
@@ -109,11 +88,18 @@ public class CrmCallCenterController {
 //        CrmCallcenterUserDO crmCallcenterUserDO = crmCallCenterService.getCallCenterUser(phone);
 //        param2.put("userId",crmCallcenterUserDO.getYunkeCallcenterUserId());
 
-        HttpEntity<String> requestEntity2 = new HttpEntity<>(JSONUtil.toJsonStr(param2),getHeaders(null));
+        HttpEntity<String> requestEntity2 = new HttpEntity<>(JSONUtil.toJsonStr(param2),crmCallCenterService.getHeaders(null));
         ResponseEntity<String> responseEntity2 = restTemplate.exchange("https://phone.yunkecn.com/open/user/phonePass", HttpMethod.POST, requestEntity2, String.class);
         System.out.println("responseEntity------->"+responseEntity2);
 
         return success(true);
+    }
+
+    @PostMapping("/binding")
+    @Operation(summary = "绑定呼叫中心用户")
+    @PreAuthorize("@ss.hasPermission('crm:callcenter:binding')")
+    public CommonResult<CrmCallcenterUserRespVO> bindingCallCenterUser(@Valid @RequestBody CrmCallcenterUserSaveReqVO userReqVO)  {
+        return success(crmCallCenterService.bindingUser(userReqVO.getUserId(),userReqVO.getYunkeCallcenterUserId()));
     }
 
     @PostMapping("/call")

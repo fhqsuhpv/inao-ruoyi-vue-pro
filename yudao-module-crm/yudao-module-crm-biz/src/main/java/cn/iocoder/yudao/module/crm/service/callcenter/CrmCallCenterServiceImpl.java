@@ -7,6 +7,7 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import cn.iocoder.yudao.module.crm.controller.admin.callcenter.vo.CrmCallcenterCallReqVO;
 
+import cn.iocoder.yudao.module.crm.controller.admin.callcenter.vo.CrmCallcenterUserRespVO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.callcenter.CrmCallcenterConfigDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.callcenter.CrmCallcenterUserDO;
 import cn.iocoder.yudao.module.crm.dal.mysql.callcenter.CrmCallcenterConfigMapper;
@@ -136,6 +137,52 @@ public class CrmCallCenterServiceImpl implements CrmCallCenterService {
     @Override
     public CrmCallcenterUserDO getCallCenterUser(String phone) {
         return callcenterUserMapper.selectOne(new LambdaQueryWrapperX<CrmCallcenterUserDO>().eq(CrmCallcenterUserDO::getLianlianCallcenterPhone,phone));
+    }
+
+    public HttpHeaders getHeaders(String partnerId) {
+        //云客接口部分用管理员ID外呼接口需要使用UserId
+        String pid = partnerId != null ? partnerId : "p445B194DD03B47B893BD3256A57721DE";//管理员ID
+        String api_key = "A1C95A823C8B448B9578B4";  //接口签名KEY
+        String company = "7fkuu0";  //企业串码
+
+        String tiemstamp = String.valueOf(System.currentTimeMillis());
+
+        String s = md5(api_key + company + pid + tiemstamp).toUpperCase();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("partnerId", pid);//管理员ID
+        headers.add("company", company);//企业串码
+        headers.add("timestamp", tiemstamp);
+        headers.add("sign", s);//签名
+        System.out.println("headers------->"+headers);
+        System.out.println("sign------->"+(api_key + company + pid + tiemstamp));
+        System.out.println("sign_md5------->"+md5(api_key + company + pid + tiemstamp).toUpperCase());
+        return headers;
+    }
+
+    @Override
+    public Boolean isCallCenterUser(String phone) {
+        Map<String,Object> param = new HashMap<>();
+        param.put("phone",phone);
+        HttpEntity<String> requestEntity = new HttpEntity<>(JSONUtil.toJsonStr(param),getHeaders(null));
+        ResponseEntity<String> responseEntity = restTemplate.exchange("https://phone.yunkecn.com/open/user/getUserByPhone", HttpMethod.POST, requestEntity, String.class);
+        System.out.println("responseEntity------->"+responseEntity);
+        responseEntity.getBody();
+        return true;
+    }
+
+    @Override
+    public CrmCallcenterUserRespVO bindingUser(Long userId, String phone) {
+        isCallCenterUser(phone);
+
+        Map<String,Object> param = new HashMap<>();
+        param.put("phone",phone);
+        param.put("userId",userId);
+
+        HttpEntity<String> requestEntity = new HttpEntity<>(JSONUtil.toJsonStr(param),getHeaders(null));
+        ResponseEntity<String> responseEntity = restTemplate.exchange("https://phone.yunkecn.com/open/user/phonePass", HttpMethod.POST, requestEntity, String.class);
+        System.out.println("responseEntity------->"+responseEntity);
+        return null;
     }
 
 }

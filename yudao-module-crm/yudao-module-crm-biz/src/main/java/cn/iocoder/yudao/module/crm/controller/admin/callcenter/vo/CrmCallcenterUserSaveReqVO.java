@@ -13,12 +13,14 @@ public class CrmCallcenterUserSaveReqVO {
     private Long id;
 
     @Schema(description = "用户id", example = "2642")
+    @NotEmpty(message = "用户ID不能为空")
     private Long userId;
 
     @Schema(description = "云客用户id", example = "23969")
     private String yunkeCallcenterUserId;
 
     @Schema(description = "云客手机号")
+    @NotEmpty(message = "云客手机号不能为空")
     private String yunkeCallcenterPhone;
 
     @Schema(description = "连连用户id", example = "18461")
